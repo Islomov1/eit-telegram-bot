@@ -123,8 +123,6 @@ If a user says they want to prepare for an exam, ask which exam and suggest IELT
   );
 
   const data = await openaiResponse.json();
-  console.log("OpenAI raw response:", data);
-
   const aiMessage: string | undefined =
     data?.choices?.[0]?.message?.content?.trim();
 
