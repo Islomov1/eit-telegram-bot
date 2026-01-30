@@ -4,23 +4,47 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const LEADS_CHANNEL_ID = process.env.LEADS_CHANNEL_ID!;
 
-// in-memory state (MVP-safe)
+// ===== GLOBAL IN-MEMORY STORES (MVP-safe) =====
 const userLang = new Map<number, "en" | "ru" | "uz">();
 const leadState = new Map<number, { step: number; data: any }>();
+const processedUpdates = new Set<number>(); // 🔒 anti-spam key
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // ✅ ignore edited messages (prevents duplicate handling)
+  // ✅ HARD STOP: duplicate update protection
+  const updateId: number | undefined = body?.update_id;
+  if (updateId && processedUpdates.has(updateId)) {
+    return NextResponse.json({ ok: true });
+  }
+  if (updateId) {
+    processedUpdates.add(updateId);
+    // keep memory sane
+    if (processedUpdates.size > 5000) {
+      processedUpdates.clear();
+    }
+  }
+
+  // ✅ Ignore edited messages
   if (body?.edited_message) {
     return NextResponse.json({ ok: true });
   }
 
-  // ✅ acknowledge callback queries immediately (CRITICAL)
+  // ✅ ACK callback queries IMMEDIATELY
   if (body?.callback_query?.id) {
-    await answerCallbackQuery(body.callback_query.id);
+    fetch(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callback_query_id: body.callback_query.id,
+        }),
+      }
+    );
   }
 
+  // 🔹 Extract message safely
   const chatId =
     body?.message?.chat?.id ||
     body?.callback_query?.message?.chat?.id;
@@ -32,9 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  /* =====================
-     LANGUAGE SELECTION
-     ===================== */
+  // ================= LANGUAGE =================
 
   if (text === "/start") {
     await sendMessage(chatId, "🌍 Please choose a language:", {
@@ -56,9 +78,7 @@ export async function POST(req: NextRequest) {
 
   const lang = userLang.get(chatId) || "en";
 
-  /* =====================
-     MAIN MENU
-     ===================== */
+  // ================= MENUS =================
 
   if (text === "CHANGE_LANG") {
     await sendMessage(chatId, "🌍 Choose a language:", {
@@ -74,36 +94,21 @@ export async function POST(req: NextRequest) {
   if (text === "KIDS") return kidsMenu(chatId, lang);
   if (text === "STUDENTS") return studentsMenu(chatId, lang);
 
-  /* =====================
-     KIDS INFO
-     ===================== */
-
   if (text === "KIDS_INFO") {
     return reply(chatId, lang, {
-      en: "👶 *Kids English*\n\nLevels: A1–B2\nPrice: 448,000 UZS / month\nDuration: up to 6 months\nSchedule: 9:30–12:30 / 14:00–20:30",
-      ru: "👶 *Английский для детей*\n\nA1–B2\nЦена: 448 000 сум\nДо 6 месяцев",
-      uz: "👶 *Bolalar uchun ingliz tili*\n\nA1–B2\nNarx: 448 000 so‘m\n6 oygacha",
+      en: "👶 Kids English\nA1–B2\n448,000 UZS / month\nUp to 6 months",
+      ru: "👶 Английский для детей\nA1–B2\n448 000 сум",
+      uz: "👶 Bolalar ingliz tili\nA1–B2\n448 000 so‘m",
     });
   }
-
-  /* =====================
-     STUDENT COURSES
-     ===================== */
 
   if (text === "A1_B2") {
     return reply(chatId, lang, {
       en:
-        "📚 *General English*\n\n" +
-        "A1 – 448,000 (≈2 months)\n" +
-        "A2 – 498,000 (2–3 months)\n" +
-        "B1 – 538,000 (4 months)\n" +
-        "B2 – 588,000 (4 months)\n\n" +
-        "3 times/week · 90 minutes",
+        "A1 – 448,000\nA2 – 498,000\nB1 – 538,000\nB2 – 588,000\n\n3x/week · 90 min",
       ru:
-        "📚 *Общий английский*\n\n" +
         "A1 – 448 000\nA2 – 498 000\nB1 – 538 000\nB2 – 588 000",
       uz:
-        "📚 *Umumiy ingliz tili*\n\n" +
         "A1 – 448 000\nA2 – 498 000\nB1 – 538 000\nB2 – 588 000",
     });
   }
@@ -111,48 +116,27 @@ export async function POST(req: NextRequest) {
   if (text === "EXAMS") {
     return reply(chatId, lang, {
       en:
-        "🎯 *Exam Preparation*\n\n" +
-        "IELTS – 678,000 (up to 6 months)\n" +
-        "CEFR – 578,000 (3 months)\n" +
-        "SAT Math – 500,000\nSAT English – 500,000\n" +
-        "Individual – 1,480,000 (unlimited)",
+        "IELTS – 678,000\nCEFR – 578,000\nSAT Math – 500,000\nSAT English – 500,000\nIndividual – 1,480,000",
       ru:
-        "🎯 *Экзамены*\n\n" +
         "IELTS – 678 000\nCEFR – 578 000\nSAT Math – 500 000\nSAT English – 500 000",
       uz:
-        "🎯 *Imtihonlar*\n\n" +
         "IELTS – 678 000\nCEFR – 578 000\nSAT Math – 500 000\nSAT English – 500 000",
     });
   }
-
-  /* =====================
-     TEACHERS
-     ===================== */
 
   if (text === "TEACHERS") {
     return reply(chatId, lang, {
-      en:
-        "👨‍🏫 *Our Teachers*\n\n" +
-        "Jasmina Sultanova — IELTS 8.0\n" +
-        "Tokhir Islomov — IELTS 8.5\n" +
-        "Rayhona Amirkhanova — IELTS 8.0\n" +
-        "Samir Rakhimberdiyev — IELTS 8.0\n" +
-        "Ozoda Abdurakhmonova — IELTS 7.5\n\n" +
-        "More than 100 students achieved results with our guidance.",
-      ru:
-        "👨‍🏫 *Преподаватели*\nIELTS 7.5–8.5\n100+ успешных студентов",
-      uz:
-        "👨‍🏫 *O‘qituvchilar*\nIELTS 7.5–8.5\n100+ natijalar",
+      en: "IELTS 7.5–8.5 certified teachers\n100+ successful students",
+      ru: "Преподаватели IELTS 7.5–8.5\n100+ результатов",
+      uz: "IELTS 7.5–8.5 ustozlar\n100+ natija",
     });
   }
 
-  /* =====================
-     LEAD CAPTURE
-     ===================== */
+  // ================= LEADS =================
 
   if (text === "ENROLL") {
     leadState.set(chatId, { step: 1, data: {} });
-    await sendMessage(chatId, getText(lang, "ask_name"));
+    await sendMessage(chatId, ask(lang, "name"));
     return NextResponse.json({ ok: true });
   }
 
@@ -160,11 +144,9 @@ export async function POST(req: NextRequest) {
     return handleLead(chatId, text, lang);
   }
 
-  /* =====================
-     FALLBACK (OPENAI)
-     ===================== */
+  // ================= OPENAI =================
 
-  const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+  const ai = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -175,7 +157,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are a friendly professional consultant for EIT. Reply in ${
+          content: `You are a professional consultant for EIT. Reply in ${
             lang === "ru" ? "Russian" : lang === "uz" ? "Uzbek" : "English"
           }.`,
         },
@@ -184,31 +166,14 @@ export async function POST(req: NextRequest) {
     }),
   });
 
-  const data = await aiRes.json();
+  const data = await ai.json();
   const answer = data?.choices?.[0]?.message?.content;
 
-  await sendMessage(chatId, answer || getText(lang, "fallback"));
+  await sendMessage(chatId, answer || fallback(lang));
   return NextResponse.json({ ok: true });
 }
 
-/* =====================
-   CALLBACK ACK (ANTI-SPAM)
-   ===================== */
-
-async function answerCallbackQuery(callbackQueryId: string) {
-  await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQueryId }),
-    }
-  );
-}
-
-/* =====================
-   LEAD HANDLER
-   ===================== */
+// ================= HELPERS =================
 
 async function handleLead(chatId: number, text: string, lang: string) {
   const state = leadState.get(chatId)!;
@@ -216,36 +181,28 @@ async function handleLead(chatId: number, text: string, lang: string) {
   if (state.step === 1) {
     state.data.name = text;
     state.step = 2;
-    await sendMessage(chatId, getText(lang, "ask_phone"));
+    await sendMessage(chatId, ask(lang, "phone"));
   } else if (state.step === 2) {
     state.data.phone = text;
     state.step = 3;
-    await sendMessage(chatId, getText(lang, "ask_course"));
-  } else if (state.step === 3) {
-    state.data.course = text;
-    state.step = 4;
-    await sendMessage(chatId, getText(lang, "ask_age"));
+    await sendMessage(chatId, ask(lang, "course"));
   } else {
-    state.data.age = text;
+    state.data.course = text;
 
     await sendMessage(
       Number(LEADS_CHANNEL_ID),
-      `🆕 NEW LEAD\n👤 Name: ${state.data.name}\n📞 Phone: ${state.data.phone}\n🎓 Course: ${state.data.course}\n🎂 Age: ${state.data.age}`
+      `🆕 NEW LEAD\n👤 ${state.data.name}\n📞 ${state.data.phone}\n🎓 ${state.data.course}`
     );
 
     leadState.delete(chatId);
-    await sendMessage(chatId, getText(lang, "thanks"));
+    await sendMessage(chatId, thanks(lang));
   }
 
   return NextResponse.json({ ok: true });
 }
 
-/* =====================
-   MENUS & HELPERS
-   ===================== */
-
 async function showMainMenu(chatId: number, lang: string) {
-  await sendMessage(chatId, getText(lang, "welcome"), {
+  await sendMessage(chatId, welcome(lang), {
     inline_keyboard: [
       [{ text: "👶 Kids", callback_data: "KIDS" }],
       [{ text: "🎓 Students", callback_data: "STUDENTS" }],
@@ -257,76 +214,22 @@ async function showMainMenu(chatId: number, lang: string) {
 }
 
 async function kidsMenu(chatId: number, lang: string) {
-  await sendMessage(chatId, getText(lang, "kids_menu"), {
+  await sendMessage(chatId, "Kids section", {
     inline_keyboard: [
-      [{ text: "📘 Kids English", callback_data: "KIDS_INFO" }],
-      [{ text: "📝 Enroll a child", callback_data: "ENROLL" }],
-      [{ text: "⬅️ Back", callback_data: "STUDENTS" }],
+      [{ text: "📘 Info", callback_data: "KIDS_INFO" }],
+      [{ text: "📝 Enroll", callback_data: "ENROLL" }],
     ],
   });
 }
 
 async function studentsMenu(chatId: number, lang: string) {
-  await sendMessage(chatId, getText(lang, "students_menu"), {
+  await sendMessage(chatId, "Students section", {
     inline_keyboard: [
       [{ text: "📚 A1–B2", callback_data: "A1_B2" }],
       [{ text: "🎯 Exams", callback_data: "EXAMS" }],
       [{ text: "📝 Enroll", callback_data: "ENROLL" }],
-      [{ text: "⬅️ Back", callback_data: "CHANGE_LANG" }],
     ],
   });
-}
-
-function getText(lang: string, key: string) {
-  const t: any = {
-    welcome: {
-      en: "Welcome to *EIT* 👋\nChoose a section:",
-      ru: "Добро пожаловать в *EIT* 👋",
-      uz: "*EIT* ga xush kelibsiz 👋",
-    },
-    kids_menu: {
-      en: "👶 Kids section",
-      ru: "👶 Детский раздел",
-      uz: "👶 Bolalar bo‘limi",
-    },
-    students_menu: {
-      en: "🎓 Students section",
-      ru: "🎓 Студенты",
-      uz: "🎓 Talabalar",
-    },
-    ask_name: {
-      en: "👤 Your name?",
-      ru: "👤 Ваше имя?",
-      uz: "👤 Ismingiz?",
-    },
-    ask_phone: {
-      en: "📞 Phone number?",
-      ru: "📞 Номер телефона?",
-      uz: "📞 Telefon raqamingiz?",
-    },
-    ask_course: {
-      en: "🎓 Course interested in?",
-      ru: "🎓 Интересующий курс?",
-      uz: "🎓 Qaysi kurs?",
-    },
-    ask_age: {
-      en: "🎂 Age?",
-      ru: "🎂 Возраст?",
-      uz: "🎂 Yosh?",
-    },
-    thanks: {
-      en: "✅ Thank you! Our team will contact you soon.",
-      ru: "✅ Спасибо! Мы скоро свяжемся с вами.",
-      uz: "✅ Rahmat! Tez orada bog‘lanamiz.",
-    },
-    fallback: {
-      en: "Please contact our admin: @EITADMIN",
-      ru: "Свяжитесь с администратором: @EITADMIN",
-      uz: "Administrator bilan bog‘laning: @EITADMIN",
-    },
-  };
-
-  return t[key]?.[lang] || "";
 }
 
 async function reply(chatId: number, lang: string, map: any) {
@@ -340,8 +243,35 @@ async function sendMessage(chatId: number, text: string, reply_markup?: any) {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "Markdown",
       reply_markup,
     }),
   });
 }
+
+const ask = (l: string, k: string) =>
+  ({
+    en: { name: "Your name?", phone: "Phone?", course: "Course?" },
+    ru: { name: "Имя?", phone: "Телефон?", course: "Курс?" },
+    uz: { name: "Ism?", phone: "Telefon?", course: "Kurs?" },
+  } as any)[l][k];
+
+const welcome = (l: string) =>
+  ({
+    en: "Welcome to EIT 👋",
+    ru: "Добро пожаловать в EIT 👋",
+    uz: "EIT ga xush kelibsiz 👋",
+  } as any)[l];
+
+const thanks = (l: string) =>
+  ({
+    en: "✅ Thank you! We’ll contact you.",
+    ru: "✅ Спасибо! Мы свяжемся.",
+    uz: "✅ Rahmat! Bog‘lanamiz.",
+  } as any)[l];
+
+const fallback = (l: string) =>
+  ({
+    en: "Please contact @EITADMIN",
+    ru: "Свяжитесь с @EITADMIN",
+    uz: "@EITADMIN bilan bog‘laning",
+  } as any)[l];
