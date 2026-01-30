@@ -4,12 +4,22 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const LEADS_CHANNEL_ID = process.env.LEADS_CHANNEL_ID!;
 
-// in-memory language + lead state (MVP-safe)
+// in-memory state (MVP-safe)
 const userLang = new Map<number, "en" | "ru" | "uz">();
 const leadState = new Map<number, { step: number; data: any }>();
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+
+  // ✅ ignore edited messages (prevents duplicate handling)
+  if (body?.edited_message) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // ✅ acknowledge callback queries immediately (CRITICAL)
+  if (body?.callback_query?.id) {
+    await answerCallbackQuery(body.callback_query.id);
+  }
 
   const chatId =
     body?.message?.chat?.id ||
@@ -18,7 +28,9 @@ export async function POST(req: NextRequest) {
   const text: string | undefined =
     body?.message?.text || body?.callback_query?.data;
 
-  if (!chatId || !text) return NextResponse.json({ ok: true });
+  if (!chatId || !text) {
+    return NextResponse.json({ ok: true });
+  }
 
   /* =====================
      LANGUAGE SELECTION
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest) {
   const lang = userLang.get(chatId) || "en";
 
   /* =====================
-     MAIN MENUS
+     MAIN MENU
      ===================== */
 
   if (text === "CHANGE_LANG") {
@@ -69,8 +81,8 @@ export async function POST(req: NextRequest) {
   if (text === "KIDS_INFO") {
     return reply(chatId, lang, {
       en: "👶 *Kids English*\n\nLevels: A1–B2\nPrice: 448,000 UZS / month\nDuration: up to 6 months\nSchedule: 9:30–12:30 / 14:00–20:30",
-      ru: "👶 *Английский для детей*\n\nУровни: A1–B2\nЦена: 448 000 сум\nДо 6 месяцев",
-      uz: "👶 *Bolalar uchun ingliz tili*\n\nDarajalar: A1–B2\nNarx: 448 000 so‘m\n6 oygacha",
+      ru: "👶 *Английский для детей*\n\nA1–B2\nЦена: 448 000 сум\nДо 6 месяцев",
+      uz: "👶 *Bolalar uchun ingliz tili*\n\nA1–B2\nNarx: 448 000 so‘m\n6 oygacha",
     });
   }
 
@@ -101,14 +113,14 @@ export async function POST(req: NextRequest) {
       en:
         "🎯 *Exam Preparation*\n\n" +
         "IELTS – 678,000 (up to 6 months)\n" +
-        "CEFR (exam) – 578,000 (3 months)\n" +
+        "CEFR – 578,000 (3 months)\n" +
         "SAT Math – 500,000\nSAT English – 500,000\n" +
         "Individual – 1,480,000 (unlimited)",
       ru:
-        "🎯 *Подготовка к экзаменам*\n\n" +
+        "🎯 *Экзамены*\n\n" +
         "IELTS – 678 000\nCEFR – 578 000\nSAT Math – 500 000\nSAT English – 500 000",
       uz:
-        "🎯 *Imtihonlarga tayyorlov*\n\n" +
+        "🎯 *Imtihonlar*\n\n" +
         "IELTS – 678 000\nCEFR – 578 000\nSAT Math – 500 000\nSAT English – 500 000",
     });
   }
@@ -121,19 +133,16 @@ export async function POST(req: NextRequest) {
     return reply(chatId, lang, {
       en:
         "👨‍🏫 *Our Teachers*\n\n" +
-        "• Jasmina Sultanova — IELTS 8.0\n" +
-        "• Tokhir Islomov — IELTS 8.5\n" +
-        "• Rayhona Amirkhanova — IELTS 8.0\n" +
-        "• Samir Rakhimberdiyev — IELTS 8.0\n" +
-        "• Ozoda Abdurakhmonova — IELTS 7.5\n" +
-        "• SAT specialists available\n\n" +
+        "Jasmina Sultanova — IELTS 8.0\n" +
+        "Tokhir Islomov — IELTS 8.5\n" +
+        "Rayhona Amirkhanova — IELTS 8.0\n" +
+        "Samir Rakhimberdiyev — IELTS 8.0\n" +
+        "Ozoda Abdurakhmonova — IELTS 7.5\n\n" +
         "More than 100 students achieved results with our guidance.",
       ru:
-        "👨‍🏫 *Преподаватели*\n\n" +
-        "IELTS 7.5–8.5\nБолее 100 успешных студентов.",
+        "👨‍🏫 *Преподаватели*\nIELTS 7.5–8.5\n100+ успешных студентов",
       uz:
-        "👨‍🏫 *O‘qituvchilar*\n\n" +
-        "IELTS 7.5–8.5\n100 dan ortiq natijalar.",
+        "👨‍🏫 *O‘qituvchilar*\nIELTS 7.5–8.5\n100+ natijalar",
     });
   }
 
@@ -180,6 +189,21 @@ export async function POST(req: NextRequest) {
 
   await sendMessage(chatId, answer || getText(lang, "fallback"));
   return NextResponse.json({ ok: true });
+}
+
+/* =====================
+   CALLBACK ACK (ANTI-SPAM)
+   ===================== */
+
+async function answerCallbackQuery(callbackQueryId: string) {
+  await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackQueryId }),
+    }
+  );
 }
 
 /* =====================
@@ -237,7 +261,7 @@ async function kidsMenu(chatId: number, lang: string) {
     inline_keyboard: [
       [{ text: "📘 Kids English", callback_data: "KIDS_INFO" }],
       [{ text: "📝 Enroll a child", callback_data: "ENROLL" }],
-      [{ text: "⬅️ Back", callback_data: "CHANGE_LANG" }],
+      [{ text: "⬅️ Back", callback_data: "STUDENTS" }],
     ],
   });
 }
