@@ -15,52 +15,85 @@ const leadState = new Map<number, { step: number; data: any }>();
 const processedUpdates = new Set<number>();
 
 /* =====================
-   TEXT DICTIONARY
+   TEXT & BUTTONS
    ===================== */
-const TEXT: any = {
+const UI: any = {
   en: {
-    main: "Welcome to *EIT* 👋\nChoose a section:",
-    kids: "👶 Kids section",
-    students: "🎓 Students section",
-    teachers: "👨‍🏫 Teachers",
-    enroll: "📝 Sign up",
-    changeLang: "🌍 Change language",
-    back: "⬅️ Back",
+    text: {
+      welcome:
+        "👋 *Welcome to EIT — Excellence in Teaching*\n\n" +
+        "We help students confidently prepare for English exams and general English.\n" +
+        "Choose what you’re interested in below 👇",
 
-    kidsInfo:
-      "👶 *Kids English*\n\nLevels: A1–B2\nPrice: 448,000 UZS / month\nDuration: up to 6 months\n\n⏰ Schedule:\n9:30–12:30\n14:00–20:30\n\nFinal schedule confirmed by admin.",
+      kidsInfo:
+        "👶 *Kids English (A1–B2)*\n\n" +
+        "• Small groups\n• Friendly environment\n• Strong foundation\n\n" +
+        "💰 Price: *448,000 UZS / month*\n" +
+        "⏳ Duration: up to 6 months\n\n" +
+        "⏰ Schedule:\n9:30–12:30 / 14:00–20:30\n\n" +
+        "_Final schedule is confirmed by admin._",
 
-    general:
-      "📚 *General English*\n\nA1 — 448,000 (≈2 months)\nA2 — 498,000 (2–3 months)\nB1 — 538,000 (4 months)\nB2 — 588,000 (4 months)\n\n3 times/week · 90 minutes",
+      general:
+        "📚 *General English (A1–B2)*\n\n" +
+        "A1 — 448,000 (≈2 months)\n" +
+        "A2 — 498,000 (2–3 months)\n" +
+        "B1 — 538,000 (4 months)\n" +
+        "B2 — 588,000 (4 months)\n\n" +
+        "• 3 times/week\n• 90 minutes per class",
 
-    exams:
-      "🎯 *Exam Preparation*\n\nIELTS — 678,000 (up to 6 months)\nCEFR — 578,000 (3 months)\nSAT Math — 500,000\nSAT English — 500,000\nIndividual — 1,480,000 (unlimited)",
+      exams:
+        "🎯 *Exam Preparation*\n\n" +
+        "IELTS — 678,000 (up to 6 months)\n" +
+        "CEFR — 578,000 (3 months)\n" +
+        "SAT Math — 500,000\nSAT English — 500,000\n\n" +
+        "👤 Individual lessons — 1,480,000 (unlimited)",
 
-    prices:
-      "💰 *Prices*\n\nKids — 448,000\nA1 — 448,000\nA2 — 498,000\nB1 — 538,000\nB2 — 588,000\nIELTS — 678,000\nCEFR — 578,000\nSAT — 500,000 per section\nIndividual — 1,480,000",
+      prices:
+        "💰 *Prices Summary*\n\n" +
+        "Kids — 448,000\nA1 — 448,000\nA2 — 498,000\nB1 — 538,000\nB2 — 588,000\nIELTS — 678,000\nCEFR — 578,000\nSAT — 500,000 / section\nIndividual — 1,480,000",
 
-    schedule:
-      "⏰ *Schedule*\n\nMorning: 9:30–12:30\nAfternoon/Evening: 14:00–20:30\n\nFinal schedule depends on level and is confirmed by admin.",
+      schedule:
+        "⏰ *Class Schedule*\n\n" +
+        "Morning: 9:30–12:30\n" +
+        "Afternoon/Evening: 14:00–20:30\n\n" +
+        "_Exact time depends on level and is confirmed by admin._",
 
-    teachersText:
-      "👨‍🏫 *Our Teachers*\n\n" +
-      "Jasmina Sultanova — IELTS 8.0\n" +
-      "Tokhir Islomov — IELTS 8.5\n" +
-      "Rayhona Amirkhanova — IELTS 8.0\n" +
-      "Samir Rakhimberdiyev — IELTS 8.0\n" +
-      "Ozoda Abdurakhmonova — IELTS 7.5\n\n" +
-      "More than 100 students have achieved results with our guidance.",
+      teachers:
+        "👨‍🏫 *Our Teachers*\n\n" +
+        "• Jasmina Sultanova — IELTS 8.0\n" +
+        "• Tokhir Islomov — IELTS 8.5\n" +
+        "• Rayhona Amirkhanova — IELTS 8.0\n" +
+        "• Samir Rakhimberdiyev — IELTS 8.0\n" +
+        "• Ozoda Abdurakhmonova — IELTS 7.5\n\n" +
+        "🌟 More than 100 students have achieved their results with our guidance.",
 
-    askName: "👤 Your name?",
-    askPhone: "📞 Phone number?",
-    askCourse: "🎓 Course interested in?",
-    askAge: "🎂 Age?",
-    thanks: "✅ Thank you! Our team will contact you soon.",
+      askName: "👤 Your name?",
+      askPhone: "📞 Your phone number?",
+      askCourse: "🎓 Which course are you interested in?",
+      askAge: "🎂 Your age (or child’s age)?",
+      thanks:
+        "✅ Thank you!\nOur admin will contact you shortly to help you get started.",
+      fallback:
+        "For detailed information, please contact our admin: @EITADMIN",
+    },
 
-    fallback: "Please contact our admin: @EITADMIN",
+    buttons: {
+      kids: "👶 Kids",
+      students: "🎓 Students",
+      teachers: "👨‍🏫 Teachers",
+      enroll: "📝 Sign up",
+      changeLang: "🌍 Change language",
+      back: "⬅️ Back",
+
+      kidsEnglish: "📘 Kids English (A1–B2)",
+      general: "📚 General English",
+      exams: "🎯 Exam Preparation",
+      prices: "💰 Prices",
+      schedule: "⏰ Schedule",
+    },
   },
 
-  /* RU and UZ are similar — trimmed for brevity in explanation */
+  /* RU & UZ same structure, different language */
 };
 
 /* =====================
@@ -78,9 +111,7 @@ export async function POST(req: NextRequest) {
     if (processedUpdates.size > 5000) processedUpdates.clear();
   }
 
-  if (body?.edited_message) {
-    return NextResponse.json({ ok: true });
-  }
+  if (body?.edited_message) return NextResponse.json({ ok: true });
 
   if (body?.callback_query?.id) {
     fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
@@ -99,9 +130,7 @@ export async function POST(req: NextRequest) {
 
   if (!chatId || !text) return NextResponse.json({ ok: true });
 
-  /* =====================
-     LANGUAGE
-     ===================== */
+  /* LANGUAGE */
   if (text === "/start") {
     await send(chatId, "🌍 Please choose a language:", {
       inline_keyboard: [
@@ -116,18 +145,15 @@ export async function POST(req: NextRequest) {
   if (text.startsWith("LANG_")) {
     const lang = text.split("_")[1];
     userLang.set(chatId, lang);
-    await mainMenu(chatId, lang);
-    return NextResponse.json({ ok: true });
+    return mainMenu(chatId, lang);
   }
 
   const lang = userLang.get(chatId) || "en";
-  const t = TEXT[lang];
+  const t = UI[lang].text;
+  const b = UI[lang].buttons;
 
-  /* =====================
-     MENUS
-     ===================== */
+  /* MENUS */
   if (text === "MAIN") return mainMenu(chatId, lang);
-
   if (text === "KIDS") return kidsMenu(chatId, lang);
   if (text === "STUDENTS") return studentsMenu(chatId, lang);
 
@@ -136,11 +162,9 @@ export async function POST(req: NextRequest) {
   if (text === "EXAMS") return send(chatId, t.exams);
   if (text === "PRICES") return send(chatId, t.prices);
   if (text === "SCHEDULE") return send(chatId, t.schedule);
-  if (text === "TEACHERS") return send(chatId, t.teachersText);
+  if (text === "TEACHERS") return send(chatId, t.teachers);
 
-  /* =====================
-     ENROLL FLOW
-     ===================== */
+  /* ENROLL */
   if (text === "ENROLL") {
     leadState.set(chatId, { step: 1, data: {} });
     return send(chatId, t.askName);
@@ -150,9 +174,7 @@ export async function POST(req: NextRequest) {
     return handleLead(chatId, text, lang);
   }
 
-  /* =====================
-     CHATGPT (OPEN QUESTIONS)
-     ===================== */
+  /* CHATGPT */
   const ai = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -164,9 +186,10 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are a friendly professional consultant for EIT.
-Help users choose courses and suggest signing up.
-Reply in ${lang}. Never guarantee scores.`,
+          content:
+            "You are a friendly, professional education consultant for EIT. " +
+            "Help users choose courses and encourage signing up. " +
+            "Never guarantee exam scores.",
         },
         { role: "user", content: text },
       ],
@@ -174,9 +197,7 @@ Reply in ${lang}. Never guarantee scores.`,
   });
 
   const data = await ai.json();
-  const answer = data?.choices?.[0]?.message?.content;
-
-  await send(chatId, answer || t.fallback);
+  await send(chatId, data?.choices?.[0]?.message?.content || t.fallback);
   return NextResponse.json({ ok: true });
 }
 
@@ -184,50 +205,52 @@ Reply in ${lang}. Never guarantee scores.`,
    MENUS
    ===================== */
 async function mainMenu(chatId: number, lang: string) {
-  const t = TEXT[lang];
-  await send(chatId, t.main, {
+  const t = UI[lang].text;
+  const b = UI[lang].buttons;
+
+  return send(chatId, t.welcome, {
     inline_keyboard: [
-      [{ text: "👶 " + t.kids, callback_data: "KIDS" }],
-      [{ text: "🎓 " + t.students, callback_data: "STUDENTS" }],
-      [{ text: "👨‍🏫 " + t.teachers, callback_data: "TEACHERS" }],
-      [{ text: t.enroll, callback_data: "ENROLL" }],
-      [{ text: t.changeLang, callback_data: "LANG_" + lang }],
+      [{ text: b.kids, callback_data: "KIDS" }],
+      [{ text: b.students, callback_data: "STUDENTS" }],
+      [{ text: b.teachers, callback_data: "TEACHERS" }],
+      [{ text: b.enroll, callback_data: "ENROLL" }],
+      [{ text: b.changeLang, callback_data: "LANG_" + lang }],
     ],
   });
 }
 
 async function kidsMenu(chatId: number, lang: string) {
-  const t = TEXT[lang];
-  await send(chatId, t.kids, {
+  const b = UI[lang].buttons;
+  return send(chatId, b.kids, {
     inline_keyboard: [
-      [{ text: "📘 Kids English", callback_data: "KIDS_INFO" }],
-      [{ text: "💰 Prices", callback_data: "PRICES" }],
-      [{ text: "⏰ Schedule", callback_data: "SCHEDULE" }],
-      [{ text: t.enroll, callback_data: "ENROLL" }],
-      [{ text: t.back, callback_data: "MAIN" }],
+      [{ text: b.kidsEnglish, callback_data: "KIDS_INFO" }],
+      [{ text: b.prices, callback_data: "PRICES" }],
+      [{ text: b.schedule, callback_data: "SCHEDULE" }],
+      [{ text: b.enroll, callback_data: "ENROLL" }],
+      [{ text: b.back, callback_data: "MAIN" }],
     ],
   });
 }
 
 async function studentsMenu(chatId: number, lang: string) {
-  const t = TEXT[lang];
-  await send(chatId, t.students, {
+  const b = UI[lang].buttons;
+  return send(chatId, b.students, {
     inline_keyboard: [
-      [{ text: "📚 General English", callback_data: "A1_B2" }],
-      [{ text: "🎯 Exam Prep", callback_data: "EXAMS" }],
-      [{ text: "💰 Prices", callback_data: "PRICES" }],
-      [{ text: "⏰ Schedule", callback_data: "SCHEDULE" }],
-      [{ text: t.enroll, callback_data: "ENROLL" }],
-      [{ text: t.back, callback_data: "MAIN" }],
+      [{ text: b.general, callback_data: "A1_B2" }],
+      [{ text: b.exams, callback_data: "EXAMS" }],
+      [{ text: b.prices, callback_data: "PRICES" }],
+      [{ text: b.schedule, callback_data: "SCHEDULE" }],
+      [{ text: b.enroll, callback_data: "ENROLL" }],
+      [{ text: b.back, callback_data: "MAIN" }],
     ],
   });
 }
 
 /* =====================
-   LEAD HANDLER
+   LEADS
    ===================== */
 async function handleLead(chatId: number, text: string, lang: string) {
-  const t = TEXT[lang];
+  const t = UI[lang].text;
   const state = leadState.get(chatId)!;
 
   if (state.step === 1) {
@@ -235,13 +258,11 @@ async function handleLead(chatId: number, text: string, lang: string) {
     state.step = 2;
     return send(chatId, t.askPhone);
   }
-
   if (state.step === 2) {
     state.data.phone = text;
     state.step = 3;
     return send(chatId, t.askCourse);
   }
-
   if (state.step === 3) {
     state.data.course = text;
     state.step = 4;
