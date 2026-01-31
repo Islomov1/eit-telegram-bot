@@ -79,16 +79,26 @@ export async function routeUpdate(update: TelegramUpdate): Promise<void> {
 
     // ChatGPT fallback
     const lang = getUserLanguage(chatId);
-    const aiResponse = await askChatGPT(
-      OPENAI_API_KEY,
-      text,
-      lang
-    );
+   // Immediate feedback (fast UX)
+await sendMessage(
+  TELEGRAM_TOKEN,
+  chatId,
+  "🤔 Let me think about that..."
+);
 
-    await sendMessage(
+// Background AI (non-blocking)
+askChatGPT(OPENAI_API_KEY, text, lang)
+  .then((aiResponse) => {
+    sendMessage(
       TELEGRAM_TOKEN,
       chatId,
       aiResponse?.content || TEXT[lang].fallback
     );
-  }
-}
+  })
+  .catch(() => {
+    sendMessage(
+      TELEGRAM_TOKEN,
+      chatId,
+      TEXT[lang].fallback
+    );
+  });
