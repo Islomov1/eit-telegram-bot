@@ -33,6 +33,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 export async function routeUpdate(update: TelegramUpdate): Promise<void> {
   const updateId = update.update_id;
 
+  // Anti-spam: ignore duplicate updates
   if (isUpdateProcessed(updateId)) return;
   markUpdateProcessed(updateId);
 
@@ -67,38 +68,41 @@ export async function routeUpdate(update: TelegramUpdate): Promise<void> {
     const chatId = update.message.chat.id;
     const text = update.message.text.trim();
 
-    // /start
+    // /start command
     if (text === "/start") {
       await handleStart(chatId);
       return;
     }
 
-    // Lead flow
+    // Lead flow (sign-up)
     const consumed = await handleLeadInput(chatId, text);
     if (consumed) return;
 
-    // ChatGPT fallback
+    // ChatGPT fallback (NON-BLOCKING UX)
     const lang = getUserLanguage(chatId);
-   // Immediate feedback (fast UX)
-await sendMessage(
-  TELEGRAM_TOKEN,
-  chatId,
-  "🤔 Let me think about that..."
-);
 
-// Background AI (non-blocking)
-askChatGPT(OPENAI_API_KEY, text, lang)
-  .then((aiResponse) => {
-    sendMessage(
+    // Immediate feedback (fast perception)
+    await sendMessage(
       TELEGRAM_TOKEN,
       chatId,
-      aiResponse?.content || TEXT[lang].fallback
+      "🤔 Let me think about that..."
     );
-  })
-  .catch(() => {
-    sendMessage(
-      TELEGRAM_TOKEN,
-      chatId,
-      TEXT[lang].fallback
-    );
-  });
+
+    // Background AI response
+    askChatGPT(OPENAI_API_KEY, text, lang)
+      .then((aiResponse) => {
+        sendMessage(
+          TELEGRAM_TOKEN,
+          chatId,
+          aiResponse?.content || TEXT[lang].fallback
+        );
+      })
+      .catch(() => {
+        sendMessage(
+          TELEGRAM_TOKEN,
+          chatId,
+          TEXT[lang].fallback
+        );
+      });
+  }
+}
